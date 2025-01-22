@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background-color: #f4f4f9;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        table th {
+            background-color: #007bff;
+            color: white;
+        }
+        .actions button {
+            margin-right: 5px;
+            padding: 5px 10px;
+            border: none;
+            color: white;
+            background-color: #007bff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .actions button.delete {
+            background-color: #dc3545;
+        }
+        .form {
+            display: none;
+            margin-top: 20px;
+        }
+        .form input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .form button {
+            margin-top: 10px;
+            padding: 8px 15px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>User Management Dashboard</h1>
+        <button id="add-user">Add User</button>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Email</th>
+                    <th>Department</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="user-list"></tbody>
+        </table>
+
+        <div class="form" id="user-form">
+            <h3 id="form-title">Add User</h3>
+            <input type="hidden" id="user-id">
+            <input type="text" id="first-name" placeholder="First Name">
+            <input type="text" id="last-name" placeholder="Last Name">
+            <input type="email" id="email" placeholder="Email">
+            <input type="text" id="department" placeholder="Department">
+            <button id="save-user">Save</button>
+            <button id="cancel-form">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const userList = document.getElementById('user-list');
+        const userForm = document.getElementById('user-form');
+        const formTitle = document.getElementById('form-title');
+        const userIdField = document.getElementById('user-id');
+        const firstNameField = document.getElementById('first-name');
+        const lastNameField = document.getElementById('last-name');
+        const emailField = document.getElementById('email');
+        const departmentField = document.getElementById('department');
+        const saveButton = document.getElementById('save-user');
+        const cancelFormButton = document.getElementById('cancel-form');
+
+        let editingUserId = null;
+
+        // Fetch users
+        async function fetchUsers() {
+            try {
+                const response = await fetch('https://jsonplaceholder.typicode.com/users');
+                const users = await response.json();
+                renderUsers(users);
+            } catch (error) {
+                alert('Failed to fetch users. Please try again.');
+            }
+        }
+
+        // Render users
+        function renderUsers(users) {
+            userList.innerHTML = '';
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${user.name.split(' ')[0]}</td>
+                    <td>${user.name.split(' ')[1] || ''}</td>
+                    <td>${user.email}</td>
+                    <td>${user.company.name}</td>
+                    <td class="actions">
+                        <button onclick="editUser(${user.id})">Edit</button>
+                        <button class="delete" onclick="deleteUser(${user.id})">Delete</button>
+                    </td>
+                `;
+                userList.appendChild(row);
+            });
+        }
+
+        // Show form
+        function showForm(edit = false) {
+            userForm.style.display = 'block';
+            formTitle.textContent = edit ? 'Edit User' : 'Add User';
+        }
+
+        // Hide form
+        function hideForm() {
+            userForm.style.display = 'none';
+            resetForm();
+        }
+
+        // Reset form
+        function resetForm() {
+            userIdField.value = '';
+            firstNameField.value = '';
+            lastNameField.value = '';
+            emailField.value = '';
+            departmentField.value = '';
+        }
+
+        // Add user
+        document.getElementById('add-user').addEventListener('click', () => {
+            editingUserId = null;
+            showForm();
+        });
+
+        // Save user
+        saveButton.addEventListener('click', async () => {
+            const user = {
+                id: userIdField.value,
+                name: `${firstNameField.value} ${lastNameField.value}`,
+                email: emailField.value,
+                company: { name: departmentField.value }
+            };
+
+            try {
+                if (editingUserId) {
+                    await fetch(`https://jsonplaceholder.typicode.com/users/${editingUserId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(user)
+                    });
+                } else {
+                    await fetch('https://jsonplaceholder.typicode.com/users', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(user)
+                    });
+                }
+                fetchUsers();
+                hideForm();
+            } catch (error) {
+                alert('Failed to save user. Please try again.');
+            }
+        });
+
+        // Edit user
+        window.editUser = async (id) => {
+            editingUserId = id;
+            showForm(true);
+            try {
+                const response = await fetch(`https://jsonplaceholder.typicode.com/users/${id}`);
+                const user = await response.json();
+                userIdField.value = user.id;
+                firstNameField.value = user.name.split(' ')[0];
+                lastNameField.value = user.name.split(' ')[1] || '';
+                emailField.value = user.email;
+                departmentField.value = user.company.name;
+            } catch (error) {
+                alert('Failed to fetch user details.');
+            }
+        };
+
+        // Delete user
+        window.deleteUser = async (id) => {
+            try {
+                await fetch(`https://jsonplaceholder.typicode.com/users/${id}`, { method: 'DELETE' });
+                fetchUsers();
+            } catch (error) {
+                alert('Failed to delete user.');
+            }
+        };
+
+        // Cancel form
+        cancelFormButton.addEventListener('click', hideForm);
+
+        // Initialize
+        fetchUsers();
+    </script>
+</body>
+</html>
